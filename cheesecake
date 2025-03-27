@@ -1,0 +1,28 @@
+#!/bin/env /bin/bash
+
+manufacturer=$1
+device=$2
+
+if [[ -z "$manufacturer" || -z "$device" ]]; then
+    echo "Command usage: ./cheesecake <manufacturer> <device>"
+    exit 1
+fi
+
+mkdir -p out/
+
+cat > "out/build.ninja" << EOF
+# Auto-generated Ninja file for $manufacturer/$device
+ninja_required_version = 1.8
+
+rule make
+    command = make -C \$dir
+    description = Building in \$dir
+EOF
+
+for MAKEFILE in $MAKEFILES; do
+    DIR=$(dirname "$MAKEFILE")
+    echo "build $DIR/build: make" >> out/build.ninja
+    echo "  dir = $DIR" >> out/build.ninja
+done
+
+echo "Run `ninja -C out` to build."
