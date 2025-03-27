@@ -8,6 +8,26 @@ if [[ -z "$manufacturer" || -z "$device" ]]; then
     exit 1
 fi
 
+DEVICE_PATH=$ROOT_DIR/device/$MANUFACTURER/$DEVICE
+DEVICE_INFO=$DEVICE_PATH/device.info
+
+# Check if device.info exists
+if [ ! -f "$DEVICE_INFO" ]; then
+    echo "Error: No device.info found for $MANUFACTURER/$DEVICE"
+    exit 1
+fi
+
+# Read device.info
+source "$DEVICE_INFO"
+
+# Ensure MODULES is defined
+if [ -z "$MODULES" ]; then
+    echo "Error: No MODULES specified in $device"
+    exit 1
+fi
+
+echo "Setting up Ninja build for $device ($manufacturer)..."
+
 mkdir -p out/
 
 cat > "out/build.ninja" << EOF
