@@ -1,48 +1,77 @@
-#!/bin/env /bin/bash
+#!/bin/bash
 
-manufacturer=$1
-device=$2
+set -e
 
-if [[ -z "$manufacturer" || -z "$device" ]]; then
-    echo "Command usage: ./cheesecake <manufacturer> <device>"
+ROOT_DIR=$(pwd)
+OUT_DIR=$ROOT_DIR/out
+OUT_NINJA=$OUT_DIR/build.ninja
+
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "Usage: $0 <manufacturer> <device>"
     exit 1
 fi
 
+MANUFACTURER=$1
+DEVICE=$2
 DEVICE_PATH=$ROOT_DIR/device/$MANUFACTURER/$DEVICE
 DEVICE_INFO=$DEVICE_PATH/device.info
 
-# Check if device.info exists
 if [ ! -f "$DEVICE_INFO" ]; then
     echo "Error: No device.info found for $MANUFACTURER/$DEVICE"
     exit 1
 fi
 
-# Read device.info
 source "$DEVICE_INFO"
 
-# Ensure MODULES is defined
-if [ -z "$MODULES" ]; then
-    echo "Error: No MODULES specified in $device"
-    exit 1
-fi
+case "$DEVICE_TYPE" in
+    watch)
+        MODULES="frameworks/base"
+        ;;
+    *)
+        echo "[ERROR] Unknown DEVICE_TYPE '$DEVICE_TYPE'"
+        exit 1
+        ;;
+esac
 
-echo "Setting up Ninja build for $device ($manufacturer)..."
+echo "[INFO] Setting up Ninja build for $DEVICE_NAME ($MANUFACTURER) - Type: $DEVICE_TYPE"
 
-mkdir -p out/
+mkdir -p "$OUT_DIR"
 
-cat > "out/build.ninja" << EOF
-# Auto-generated Ninja file for $manufacturer/$device
+cat > "$OUT_NINJA" <<EOF
+# Auto-generated Ninja build file for $DEVICE_NAME
 ninja_required_version = 1.8
 
 rule make
-    command = make -C \$dir
-    description = Building in \$dir
+  command = make -C \$dir
+  description = Building in \$dir
+
+rule cc
+  command = gcc \$cflags -c \$in -o \$out
+  description = Compiling \$in
+
+rule link
+  command = gcc \$in -o \$out \$lflags
+  description = Linking \$out
 EOF
 
-for MAKEFILE in $MAKEFILES; do
-    DIR=$(dirname "$MAKEFILE")
-    echo "build $DIR/build: make" >> out/build.ninja
-    echo "  dir = $DIR" >> out/build.ninja
+for MODULE in $MODULES; do
+    MODULE_DIR="$ROOT_DIR/$MODULE"
+    MAKEFILE="$MODULE_DIR/Makefile"
+
+    if [ -f "$MAKEFILE" ]; then
+        echo "[INFO] Found Makefile in $MODULE_DIR"
+        echo "build $MODULE_DIR/build: make" >> "$OUT_NINJA"
+        echo "  dir = $MODULE_DIR" >> "$OUT_NINJA"
+    else
+        echo "[WARNING] No Makefile found in $MODULE_DIR"
+    fi
 done
 
-echo "Run `ninja -C out` to build."
+echo "" >> "$OUT_NINJA"
+echo "# Global build settings" >> "$OUT_NINJA"
+echo "cflags = $COMPILE_FLAGS" >> "$OUT_NINJA"
+echo "lflags = $LINK_FLAGS" >> "$OUT_NINJA"
+
+echo "[INFO] Ninja build file generated at $OUT_NINJA"
+echo "[INFO] Run 'ninja -C out' to build."
+
