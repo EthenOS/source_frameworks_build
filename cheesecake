@@ -25,7 +25,7 @@ source "$DEVICE_INFO"
 
 case "$DEVICE_TYPE" in
     watch)
-        MODULES="frameworks/base"
+        MODULES="frameworks/base $hardware_layer/$hardware_mcu"
         ;;
     *)
         echo "[ERROR] Unknown DEVICE_TYPE '$DEVICE_TYPE'"
@@ -45,13 +45,6 @@ rule make
   command = make -C \$dir
   description = Building in \$dir
 
-rule cc
-  command = gcc \$cflags -c \$in -o \$out
-  description = Compiling \$in
-
-rule link
-  command = gcc \$in -o \$out \$lflags
-  description = Linking \$out
 EOF
 
 for MODULE in $MODULES; do
